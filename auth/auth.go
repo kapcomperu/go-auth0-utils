@@ -31,7 +31,7 @@ type Response struct {
 	Message string `json:"message"`
 }
 
-func CheckScope(scope string, tokenString string, domain string) bool {
+func CheckScope(scope string, tokenString string, domain string) (bool,string) {
 	token, _ := jwt.ParseWithClaims(tokenString, &CustomClaims{}, func (token *jwt.Token) (interface{}, error) {
 		cert, err := GetPemCert(token,domain)
 		if err != nil {
@@ -42,7 +42,7 @@ func CheckScope(scope string, tokenString string, domain string) bool {
 	})
 
 	claims, ok := token.Claims.(*CustomClaims)
-
+	sub := claims.Subject
 	hasScope := false
 	if ok {
 		result := strings.Split(claims.Scope, " ")
@@ -53,7 +53,7 @@ func CheckScope(scope string, tokenString string, domain string) bool {
 		}
 	}
 
-	return hasScope
+	return hasScope,sub
 }
 
 func GetPemCert(token *jwt.Token, domain string) (string, error) {
