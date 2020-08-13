@@ -24,6 +24,8 @@ type JSONWebKeys struct {
 
 type CustomClaims struct {
 	Scope string `json:"scope"`
+	Email string `json:"https://kapcomperu.com/email"`
+	Subject string `json:"sub"`
 	jwt.StandardClaims
 }
 
