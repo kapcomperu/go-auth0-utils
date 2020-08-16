@@ -65,6 +65,7 @@ func CheckScope(headerAuth string,scope string, domain string) UserData {
 		for i := range result {
 			if result[i] == scope {
 				hasScope = true
+				break
 			}
 		}
 	}
