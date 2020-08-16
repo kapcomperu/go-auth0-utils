@@ -14,28 +14,42 @@ type Jwks struct {
 }
 
 type JSONWebKeys struct {
-	Kty string `json:"kty"`
-	Kid string `json:"kid"`
-	Use string `json:"use"`
-	N string `json:"n"`
-	E string `json:"e"`
+	Kty string   `json:"kty"`
+	Kid string   `json:"kid"`
+	Use string   `json:"use"`
+	N   string   `json:"n"`
+	E   string   `json:"e"`
 	X5c []string `json:"x5c"`
 }
 
 type CustomClaims struct {
-	Scope string `json:"scope"`
-	Email string `json:"https://kapcomperu.com/email"`
-	Subject string `json:"sub"`
+	Scope       string   `json:"scope"`
+	Email       string   `json:"https://kapcomperu.com/email"`
+	Name        string   `json:"https://kapcomperu.com/name"`
+	Roles       []string `json:"https://kapcomperu.com/roles"`
+	Permissions []string `json:"permissions"`
+	Subject     string   `json:"sub"`
 	jwt.StandardClaims
+}
+
+type UserData struct {
+	Name        string
+	Email       string
+	Subject     string
+	Roles       []string
+	Permissions []string
+	Valid bool
 }
 
 type Response struct {
 	Message string `json:"message"`
 }
 
-func CheckScope(scope string, tokenString string, domain string) (bool,string,string) {
-	token, _ := jwt.ParseWithClaims(tokenString, &CustomClaims{}, func (token *jwt.Token) (interface{}, error) {
-		cert, err := GetPemCert(token,domain)
+func CheckScope(headerAuth string,scope string, domain string) UserData {
+	authHeaderParts := strings.Split(headerAuth, " ")
+	tokenString := authHeaderParts[1]
+	token, _ := jwt.ParseWithClaims(tokenString, &CustomClaims{}, func(token *jwt.Token) (interface{}, error) {
+		cert, err := GetPemCert(token, domain)
 		if err != nil {
 			return nil, err
 		}
@@ -44,19 +58,18 @@ func CheckScope(scope string, tokenString string, domain string) (bool,string,st
 	})
 
 	claims, ok := token.Claims.(*CustomClaims)
-	userId := claims.Subject
-	userEmail := claims.Email
+	userData := UserData{Name: claims.Name,Email: claims.Email,Subject: claims.Subject,Roles: claims.Roles,Permissions: claims.Permissions}
 	hasScope := false
 	if ok {
-		result := strings.Split(claims.Scope, " ")
+		result := userData.Permissions
 		for i := range result {
 			if result[i] == scope {
 				hasScope = true
 			}
 		}
 	}
-
-	return hasScope,userId,userEmail
+	userData.Valid = hasScope
+	return userData
 }
 
 func GetPemCert(token *jwt.Token, domain string) (string, error) {
@@ -90,8 +103,8 @@ func GetPemCert(token *jwt.Token, domain string) (string, error) {
 	return cert, nil
 }
 
-func CreateNewJwtmiddleware(audience string, domain string) *jwtmiddleware.JWTMiddleware{
-	return jwtmiddleware.New(jwtmiddleware.Options {
+func CreateNewJwtmiddleware(audience string, domain string) *jwtmiddleware.JWTMiddleware {
+	return jwtmiddleware.New(jwtmiddleware.Options{
 		ValidationKeyGetter: func(token *jwt.Token) (interface{}, error) {
 			// Verify 'aud' claim
 			aud := audience
@@ -106,7 +119,7 @@ func CreateNewJwtmiddleware(audience string, domain string) *jwtmiddleware.JWTMi
 				return token, errors.New("Invalid issuer.")
 			}
 
-			cert, err := GetPemCert(token,domain)
+			cert, err := GetPemCert(token, domain)
 			if err != nil {
 				panic(err.Error())
 			}
